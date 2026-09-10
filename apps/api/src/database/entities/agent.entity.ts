@@ -11,7 +11,7 @@ export class Agent {
   @Column({ name: 'operating_system', length: 80 }) operatingSystem!: string;
   @Column({ name: 'os_version', length: 160 }) osVersion!: string;
   @Column({ length: 80 }) architecture!: string;
-  @Column({ name: 'ip_address', length: 64, nullable: true }) ipAddress!: string | null;
+  @Column({ name: 'ip_address', type: 'varchar', length: 64, nullable: true }) ipAddress!: string | null;
   @Column({ type: 'enum', enum: AgentStatus, default: AgentStatus.OFFLINE }) status!: AgentStatus;
   @Column({ name: 'agent_version', length: 80 }) agentVersion!: string;
   @Column({ name: 'credential_hash', length: 128, select: false }) credentialHash!: string;
