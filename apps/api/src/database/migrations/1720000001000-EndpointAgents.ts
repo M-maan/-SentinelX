@@ -1,0 +1,10 @@
+import { MigrationInterface, QueryRunner } from 'typeorm';
+
+export class EndpointAgents1720000001000 implements MigrationInterface {
+  async up(q: QueryRunner): Promise<void> {
+    await q.query(`ALTER TABLE "organizations" ADD COLUMN "enrollment_token_hash" varchar(128)`);
+    await q.query(`CREATE TYPE "agents_status_enum" AS ENUM ('ONLINE','OFFLINE'); CREATE TABLE "agents" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL REFERENCES "organizations"("id") ON DELETE CASCADE, "agent_id" varchar(160) NOT NULL UNIQUE, "hostname" varchar(255) NOT NULL, "operating_system" varchar(80) NOT NULL, "os_version" varchar(160) NOT NULL, "architecture" varchar(80) NOT NULL, "ip_address" varchar(64), "status" "agents_status_enum" NOT NULL DEFAULT 'OFFLINE', "agent_version" varchar(80) NOT NULL, "credential_hash" varchar(128) NOT NULL, "first_seen" timestamptz NOT NULL DEFAULT now(), "last_seen" timestamptz, "created_at" timestamptz NOT NULL DEFAULT now(), "updated_at" timestamptz NOT NULL DEFAULT now()); CREATE INDEX "IDX_agents_organization_id" ON "agents" ("organization_id"); CREATE INDEX "IDX_agents_agent_id" ON "agents" ("agent_id");`);
+    await q.query(`CREATE TABLE "agent_telemetry" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid(), "agent_id" uuid NOT NULL REFERENCES "agents"("id") ON DELETE CASCADE, "cpu_usage" double precision NOT NULL, "memory_total" bigint NOT NULL, "memory_used" bigint NOT NULL, "memory_usage" double precision NOT NULL, "disk_total" bigint NOT NULL, "disk_used" bigint NOT NULL, "disk_usage" double precision NOT NULL, "uptime_seconds" bigint NOT NULL, "recorded_at" timestamptz NOT NULL, "created_at" timestamptz NOT NULL DEFAULT now()); CREATE INDEX "IDX_agent_telemetry_agent_id" ON "agent_telemetry" ("agent_id");`);
+  }
+  async down(q: QueryRunner): Promise<void> { await q.query('DROP TABLE "agent_telemetry"; DROP TABLE "agents"; DROP TYPE "agents_status_enum"; ALTER TABLE "organizations" DROP COLUMN "enrollment_token_hash";'); }
+}

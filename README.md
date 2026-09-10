@@ -117,6 +117,12 @@ Show the dashboard, Organization page, Users page, user creation, role change, l
 - Full frontend component/form automation is not part of this frozen M1 baseline; route smoke coverage is present.
 - Add deployment-specific TLS, secret management, observability, backup, and incident-response controls before production use.
 
+## Milestone 2 (in progress)
+
+M2 is being developed on `feature/m2-endpoint-agents`, based on the frozen M1 commit. The current slice adds agent enrollment tokens, agent-specific credentials, heartbeat/telemetry API contracts, organization-scoped device APIs, and initial Devices pages. The Go agent prototype is under `agents/sentinelx-agent`. M2 is not complete until database migration, Windows/Linux builds, integration tests, and end-to-end enrollment are verified.
+
+For a local agent, generate an enrollment token as a Security Admin from Devices, then set `SENTINELX_API_URL`, `SENTINELX_ENROLLMENT_TOKEN`, and optionally `SENTINELX_DATA_DIR` before running `go run ./cmd/sentinelx-agent -once` from `agents/sentinelx-agent`.
+
 ## Handover
 
-This repository is the frozen M1 baseline. Milestone 2 should start from this state in a separate change set and must not be mixed into the M1 freeze.
+The `main` branch remains the frozen M1 baseline. Milestone 2 work is isolated to `feature/m2-endpoint-agents` and must not be merged into M1 until its own acceptance checklist passes.
