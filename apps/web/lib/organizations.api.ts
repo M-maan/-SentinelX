@@ -1,0 +1,4 @@
+const base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+async function request(path: string, token: string, init: RequestInit = {}) { const response = await fetch(`${base}${path}`, { ...init, credentials: 'include', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init.headers ?? {}) } }); if (!response.ok) { const body = await response.json().catch(() => null); throw new Error(body?.error?.message ?? 'Request failed'); } return response.json(); }
+export type Organization = { id: string; name: string; industry: string | null; createdAt: string; updatedAt: string };
+export const organizationsApi = { current: (token: string) => request('/organizations/current', token) as Promise<Organization>, list: (token: string) => request('/organizations', token) as Promise<Organization[]>, create: (token: string, body: unknown) => request('/organizations', token, { method: 'POST', body: JSON.stringify(body) }) };

@@ -1,0 +1,2 @@
+import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'; import { User } from './user.entity';
+@Entity('organizations') export class Organization { @PrimaryGeneratedColumn('uuid') id!: string; @Column({ length: 160 }) name!: string; @Column({ type: 'varchar', length: 120, nullable: true }) industry!: string | null; @CreateDateColumn({ name: 'created_at' }) createdAt!: Date; @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date; @OneToMany(() => User, user => user.organization) users!: User[]; }

@@ -1,0 +1,3 @@
+import { Module } from '@nestjs/common'; import { TypeOrmModule } from '@nestjs/typeorm';
+import { Organization } from './entities/organization.entity'; import { User } from './entities/user.entity'; import { RefreshToken } from './entities/refresh-token.entity'; import { AuditLog } from './entities/audit-log.entity';
+@Module({ imports: [TypeOrmModule.forRoot({ type: 'postgres', url: process.env.DATABASE_URL, entities: [Organization, User, RefreshToken, AuditLog], migrations: [__dirname + '/migrations/*{.ts,.js}'], synchronize: false, ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false })] }) export class DatabaseModule {}

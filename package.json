@@ -1,0 +1,30 @@
+{
+  "name": "sentinelx",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @sentinelx/api && npm run build -w @sentinelx/web",
+    "dev:api": "npm run start:dev -w @sentinelx/api",
+    "dev:web": "npm run dev -w @sentinelx/web",
+    "lint": "npm run lint -w @sentinelx/api && npm run lint -w @sentinelx/web",
+    "test": "npm run test -w @sentinelx/api"
+  },
+  "dependencies": {
+    "defaults": "^3.0.0"
+  },
+  "devDependencies": {
+    "braces": "^3.0.3",
+    "fast-json-stable-stringify": "^2.1.0",
+    "jest-util": "^29.7.0",
+    "picomatch": "^2.3.2",
+    "postgres-array": "^3.0.4",
+    "postgres-bytea": "^3.0.0",
+    "postgres-date": "^2.1.0",
+    "postgres-interval": "^4.1.0",
+    "source-map": "^0.6.1",
+    "tmpl": "^1.0.5"
+  }
+}
