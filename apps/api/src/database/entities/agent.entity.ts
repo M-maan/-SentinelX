@@ -15,6 +15,7 @@ export class Agent {
   @Column({ type: 'enum', enum: AgentStatus, default: AgentStatus.OFFLINE }) status!: AgentStatus;
   @Column({ name: 'agent_version', length: 80 }) agentVersion!: string;
   @Column({ name: 'credential_hash', length: 128, select: false }) credentialHash!: string;
+  @Column({ name: 'credential_revoked_at', type: 'timestamptz', nullable: true }) credentialRevokedAt!: Date | null;
   @CreateDateColumn({ name: 'first_seen' }) firstSeen!: Date;
   @Column({ name: 'last_seen', type: 'timestamptz', nullable: true }) lastSeen!: Date | null;
   @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;

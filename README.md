@@ -119,7 +119,7 @@ Show the dashboard, Organization page, Users page, user creation, role change, l
 
 ## Milestone 2 (in progress)
 
-M2 is being developed on `feature/m2-endpoint-agents`, based on the frozen M1 commit. The current slice adds agent enrollment tokens, agent-specific credentials, heartbeat/telemetry API contracts, organization-scoped device APIs, and initial Devices pages. The Go agent prototype is under `agents/sentinelx-agent`. M2 is not complete until database migration, Windows/Linux builds, integration tests, and end-to-end enrollment are verified.
+M2 is implemented on `feature/m2-endpoint-agents`, based on the frozen M1 commit. It includes enrollment tokens, agent-specific credentials, heartbeat/telemetry APIs, organization-scoped device APIs, device filtering/pagination, lifecycle rotation/revocation, Devices pages, and the Go agent under `agents/sentinelx-agent`. Verification evidence is recorded in [M2_AUDIT_REPORT.md](M2_AUDIT_REPORT.md).
 
 For a local agent, generate an enrollment token as a Security Admin from Devices, then set `SENTINELX_API_URL`, `SENTINELX_ENROLLMENT_TOKEN`, and optionally `SENTINELX_DATA_DIR` before running `go run ./cmd/sentinelx-agent -once` from `agents/sentinelx-agent`.
 

@@ -17,7 +17,7 @@ export class AgentAuthGuard implements CanActivate {
     const hash = createHash('sha256').update(token).digest('hex');
     const query = this.agents.createQueryBuilder('agent').addSelect('agent.credentialHash').where('agent.credentialHash = :hash', { hash });
     const agent = await query.getOne();
-    if (!agent) throw new UnauthorizedException('Agent token is invalid or expired');
+    if (!agent || agent.credentialRevokedAt) throw new UnauthorizedException('Agent token is invalid or revoked');
     const suppliedId = request.headers['x-agent-id'];
     if (suppliedId && suppliedId !== agent.agentId) throw new UnauthorizedException('Agent identity mismatch');
     request.agent = agent;
