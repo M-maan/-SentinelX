@@ -91,6 +91,36 @@ func numberFromLine(text, key string) int64 {
 }
 func collectTelemetry() telemetry {
 	t := telemetry{Timestamp: time.Now().UTC().Format(time.RFC3339), CPU: 0, MemoryTotal: 0, MemoryUsed: 0, MemoryUsage: 0, DiskTotal: 0, DiskUsed: 0, DiskUsage: 0, Uptime: 0}
+	if runtime.GOOS == "windows" {
+		command := "$os=Get-CimInstance Win32_OperatingSystem; $cpu=(Get-CimInstance Win32_Processor | Measure-Object LoadPercentage -Average).Average; $disk=Get-CimInstance Win32_LogicalDisk -Filter \"DeviceID='C:'\"; [pscustomobject]@{Cpu=[double]$cpu;MemoryTotal=[int64]$os.TotalVisibleMemorySize*1024;MemoryFree=[int64]$os.FreePhysicalMemory*1024;DiskTotal=[int64]$disk.Size;DiskFree=[int64]$disk.FreeSpace;Boot=$os.LastBootUpTime.ToString('o')} | ConvertTo-Json -Compress"
+		if output, err := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", command).Output(); err == nil {
+			var m struct {
+				CPU         float64 `json:"Cpu"`
+				MemoryTotal int64   `json:"MemoryTotal"`
+				MemoryFree  int64   `json:"MemoryFree"`
+				DiskTotal   int64   `json:"DiskTotal"`
+				DiskFree    int64   `json:"DiskFree"`
+				Boot        string  `json:"Boot"`
+			}
+			if json.Unmarshal(output, &m) == nil {
+				t.CPU = m.CPU
+				t.MemoryTotal = m.MemoryTotal
+				t.MemoryUsed = m.MemoryTotal - m.MemoryFree
+				if t.MemoryTotal > 0 {
+					t.MemoryUsage = float64(t.MemoryUsed) * 100 / float64(t.MemoryTotal)
+				}
+				t.DiskTotal = m.DiskTotal
+				t.DiskUsed = m.DiskTotal - m.DiskFree
+				if t.DiskTotal > 0 {
+					t.DiskUsage = float64(t.DiskUsed) * 100 / float64(t.DiskTotal)
+				}
+				if boot, err := time.Parse(time.RFC3339Nano, m.Boot); err == nil {
+					t.Uptime = int64(time.Since(boot).Seconds())
+				}
+				return t
+			}
+		}
+	}
 	if runtime.GOOS == "linux" {
 		mem := readProc("/proc/meminfo")
 		total := numberFromLine(mem, "MemTotal:") * 1024

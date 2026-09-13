@@ -46,6 +46,6 @@ Branch: `feature/m2-endpoint-agents`
 
 ## Caveats
 
-- Windows resource collection uses safe platform fallback where native counters are unavailable; Linux collection uses `/proc` and `df`.
+- Windows resource collection uses PowerShell/CIM counters; Linux collection uses `/proc` and `df`. If an OS counter command is unavailable, the agent safely reports zero for that individual metric.
 - No alerting/detection/incident/realtime/AI/remediation functionality is included; those remain outside M2.
 - Production deployment still requires TLS, managed secrets, external monitoring/alerting, backups, and an operational runbook.
