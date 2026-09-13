@@ -6,4 +6,6 @@
 .shell>.main{width:min(100%,1100px);margin:0 auto}
 .main>.card{width:min(100%,1000px);max-width:100%;}
 .main>.card .filters{min-width:0}.main>.card .filters input,.main>.card .filters select{min-width:0;width:100%}
+.main:has(>a+h1)>.card{width:100%;max-width:100%;}
+.main:has(>a+h1)>.card .filters{grid-template-columns:minmax(0,2fr) minmax(130px,1fr) minmax(180px,1fr) auto;}
 .filters{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;margin:16px 0}.filters input,.filters select{background:#0a1220;border:1px solid var(--border);border-radius:8px;color:var(--ink);padding:10px}.filters .button{width:auto}.secondary{margin-top:10px;background:#25344d;color:var(--ink)}.device-list{display:grid;gap:8px}.device-row{display:flex;justify-content:space-between;align-items:center;padding:14px;border:1px solid var(--border);border-radius:8px}.online{color:var(--accent)}.offline{color:#ff9aaa}.pager{display:flex;justify-content:space-between;align-items:center;margin-top:18px}.pager button{background:#25344d;color:var(--ink);border:0;border-radius:6px;padding:8px 12px}.pager button:disabled{opacity:.4}@media(max-width:700px){.filters{grid-template-columns:1fr}.shell{grid-template-columns:1fr}.sidebar{border-right:0;border-bottom:1px solid var(--border)}}
