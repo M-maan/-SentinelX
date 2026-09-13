@@ -12,6 +12,7 @@ Branch: `feature/m2-endpoint-agents`
 - Devices dashboard with enrollment UX, filters, pagination, empty/loading/error states, and detail telemetry.
 - Go agent identity persistence, enrollment, heartbeat, retry/backoff, Linux `/proc` memory/uptime collection, disk collection, and cross-platform builds.
 - API health endpoint at `/api/v1/health`.
+- Compose healthchecks and restart policies for PostgreSQL, Redis, API, and web services.
 
 ## Verification evidence
 
