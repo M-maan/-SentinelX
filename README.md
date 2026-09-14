@@ -1,10 +1,10 @@
-# SentinelX — Milestone 1
+# SentinelX — Milestone 2
 
-SentinelX is an endpoint-security platform foundation. Milestone 1 (M1) is frozen as a secure multi-tenant foundation for authentication, organizations, users, and role-based access control. Agents, telemetry, detections, alerts, incidents, real-time monitoring, and AI are intentionally out of scope until Milestone 2.
+SentinelX is an endpoint-security platform foundation. Milestone 1 (M1) is frozen as a secure multi-tenant foundation for authentication, organizations, users, and role-based access control. Milestone 2 adds endpoint enrollment and device telemetry while keeping detections, alerts, incidents, real-time monitoring, and AI out of scope.
 
 ## Status
 
-M1 functional scope is complete and verified with production builds, automated backend tests, frontend route smoke tests, PostgreSQL migrations, live authentication/RBAC smoke tests, and Docker Compose startup. See [AUDIT_REPORT.md](AUDIT_REPORT.md) for evidence and caveats.
+M1 and M2 functional scopes are complete and verified on the M2 branch with production builds, automated backend tests, frontend route smoke tests, PostgreSQL migrations, live enrollment/heartbeat/telemetry checks, and Docker Compose startup. M2 is frozen on `feature/m2-endpoint-agents`; `main` remains the unchanged M1 baseline. See [M2_FINAL_AUDIT_REPORT.md](M2_FINAL_AUDIT_REPORT.md) for final evidence and caveats.
 
 ## Stack
 
@@ -18,9 +18,11 @@ M1 functional scope is complete and verified with production builds, automated b
 ```text
 apps/api/    NestJS API, entities, migrations, tests
 apps/web/    Next.js application, pages, API clients, smoke test
+agents/      Go endpoint agent (`agents/sentinelx-agent`)
 docker-compose.yml
 .env.example
 AUDIT_REPORT.md
+M2_FINAL_AUDIT_REPORT.md
 ```
 
 ## Prerequisites
@@ -31,7 +33,9 @@ AUDIT_REPORT.md
 
 ## Environment setup
 
-Copy `.env.example` to `.env` and replace the placeholder JWT secrets with long random values. `.env` is local-only and ignored by Git. The API uses `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `REDIS_URL`, and `PORT`; the web app uses `NEXT_PUBLIC_API_URL`.
+Copy `.env.example` to `.env` and replace the placeholder JWT secrets with long random values. `.env` is local-only and ignored by Git. The API uses `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `REDIS_URL`, `PORT`, `CORS_ORIGIN`, and `AGENT_OFFLINE_THRESHOLD_SECONDS`; the web app uses `NEXT_PUBLIC_API_URL`.
+
+For the Go agent, configure `SENTINELX_API_URL` (normally `http://localhost:3001/api/v1`), `SENTINELX_ENROLLMENT_TOKEN` for first enrollment, and optionally `SENTINELX_AGENT_ID`, `SENTINELX_AGENT_TOKEN`, `SENTINELX_AGENT_VERSION`, `SENTINELX_INTERVAL`, and `SENTINELX_DATA_DIR`.
 
 ## Local development
 
@@ -95,7 +99,11 @@ npm run migration:run -w @sentinelx/api
 npm run migration:revert -w @sentinelx/api
 ```
 
-Never enable TypeORM synchronization for shared or production databases; schema changes belong in migrations.
+Never enable TypeORM synchronization for shared or production databases; schema changes belong in migrations. To inspect migration status after a production build:
+
+```powershell
+docker compose exec api ./node_modules/.bin/typeorm migration:show -d dist/database/data-source.js
+```
 
 ## Demo flow
 
@@ -108,7 +116,7 @@ $env:DEMO_EMAIL='demo@sentinelx.local'; $env:DEMO_PASSWORD='choose-a-local-demo-
 
 Then sign in at `http://localhost:3000/login` with the local values you assigned to `DEMO_EMAIL` and `DEMO_PASSWORD`. These credentials are development-only; change them before any shared deployment.
 
-Show the dashboard, Organization page, Users page, user creation, role change, logout, and protected-route behavior. M1 does not include security agents, device telemetry, detections, alerts, incidents, real-time monitoring, or an AI assistant.
+Show the dashboard, Organization page, Users page, user creation, role change, logout, and protected-route behavior. For M2, open Devices as a Security Admin, generate a short-lived enrollment token, configure the Go agent, run one heartbeat/telemetry cycle, and confirm the endpoint appears ONLINE with telemetry. Test hostname/agent ID, OS, status, and pagination filters, then revoke or rotate the agent credential and verify the old credential is rejected.
 
 ## Known production caveats
 
@@ -117,11 +125,48 @@ Show the dashboard, Organization page, Users page, user creation, role change, l
 - Full frontend component/form automation is not part of this frozen M1 baseline; route smoke coverage is present.
 - Add deployment-specific TLS, secret management, observability, backup, and incident-response controls before production use.
 
-## Milestone 2 (in progress)
+## Milestone 2 completed scope
 
-M2 is implemented on `feature/m2-endpoint-agents`, based on the frozen M1 commit. It includes enrollment tokens, agent-specific credentials, heartbeat/telemetry APIs, organization-scoped device APIs, device filtering/pagination, lifecycle rotation/revocation, Devices pages, and the Go agent under `agents/sentinelx-agent`. Verification evidence is recorded in [M2_AUDIT_REPORT.md](M2_AUDIT_REPORT.md).
+M2 is implemented and frozen on `feature/m2-endpoint-agents`, based on the frozen M1 commit. It includes:
 
-For a local agent, generate an enrollment token as a Security Admin from Devices, then set `SENTINELX_API_URL`, `SENTINELX_ENROLLMENT_TOKEN`, and optionally `SENTINELX_DATA_DIR` before running `go run ./cmd/sentinelx-agent -once` from `agents/sentinelx-agent`.
+- 30-minute organization enrollment tokens with revocation.
+- Hashed agent credentials with rotation and revocation.
+- Organization-scoped enrollment, heartbeat, telemetry, list, and detail APIs.
+- Online/offline status, hostname/agent ID search, OS/status filters, and pagination.
+- Devices dashboard and telemetry detail page.
+- Go agent identity persistence, retry/backoff, and real CPU, memory, disk, and uptime collection on Windows/Linux.
+- Docker health checks and API health endpoint.
+
+Verification evidence is recorded in [M2_FINAL_AUDIT_REPORT.md](M2_FINAL_AUDIT_REPORT.md) and [M2_AUDIT_REPORT.md](M2_AUDIT_REPORT.md).
+
+For a local agent, generate an enrollment token as a Security Admin from Devices, then run from `agents/sentinelx-agent`:
+
+```powershell
+$env:SENTINELX_API_URL='http://localhost:3001/api/v1'
+$env:SENTINELX_ENROLLMENT_TOKEN='sx_enroll_...'
+go run ./cmd/sentinelx-agent -once
+```
+
+Use `SENTINELX_INTERVAL=60s` and omit `-once` for continuous local operation. Enrollment tokens are secrets and must not be committed or shared in screenshots.
+
+## Verification commands
+
+```powershell
+npm run build
+npm run lint
+npm test
+npm run test:smoke -w @sentinelx/web
+docker compose up -d --build
+docker compose ps
+docker compose exec api ./node_modules/.bin/typeorm migration:show -d dist/database/data-source.js
+```
+
+## M2 known limitations
+
+- M2 does not include detections, alerts, incidents, realtime streaming, AI, or remediation.
+- Production still requires TLS, managed secrets, external monitoring/alerting, backups, and a service manager for the Go agent.
+- Windows collection uses PowerShell/CIM and Linux collection uses `/proc` and `df`; unavailable OS counters safely produce zero for that metric.
+- Known upstream dependency advisories remain documented; no breaking automatic downgrade was applied.
 
 ## Handover
 
