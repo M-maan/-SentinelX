@@ -45,13 +45,33 @@ func env(k, fallback string) string {
 }
 func loadConfig() config {
 	interval, _ := time.ParseDuration(env("SENTINELX_INTERVAL", "60s"))
+	apiURL := env("SENTINELX_API_URL", "http://localhost:3001/api/v1")
+	enrollmentToken := os.Getenv("SENTINELX_ENROLLMENT_TOKEN")
+	// The UI download places a short-lived setup file beside the agent executable.
+	// Environment variables still take precedence for manually managed installs.
+	if exe, err := os.Executable(); err == nil {
+		if data, err := os.ReadFile(filepath.Join(filepath.Dir(exe), "setup.json")); err == nil {
+			var setup struct {
+				APIURL          string `json:"apiUrl"`
+				EnrollmentToken string `json:"enrollmentToken"`
+			}
+			if json.Unmarshal(data, &setup) == nil {
+				if os.Getenv("SENTINELX_API_URL") == "" && setup.APIURL != "" {
+					apiURL = setup.APIURL
+				}
+				if enrollmentToken == "" {
+					enrollmentToken = setup.EnrollmentToken
+				}
+			}
+		}
+	}
 	dir := os.Getenv("SENTINELX_DATA_DIR")
 	if dir == "" {
 		if d, e := os.UserConfigDir(); e == nil {
 			dir = filepath.Join(d, "SentinelX")
 		}
 	}
-	return config{APIURL: strings.TrimRight(env("SENTINELX_API_URL", "http://localhost:3001/api/v1"), "/"), EnrollmentToken: os.Getenv("SENTINELX_ENROLLMENT_TOKEN"), AgentID: os.Getenv("SENTINELX_AGENT_ID"), AgentToken: os.Getenv("SENTINELX_AGENT_TOKEN"), Version: env("SENTINELX_AGENT_VERSION", "0.1.0"), DataDir: dir, Interval: interval}
+	return config{APIURL: strings.TrimRight(apiURL, "/"), EnrollmentToken: enrollmentToken, AgentID: os.Getenv("SENTINELX_AGENT_ID"), AgentToken: os.Getenv("SENTINELX_AGENT_TOKEN"), Version: env("SENTINELX_AGENT_VERSION", "0.1.0"), DataDir: dir, Interval: interval}
 }
 func loadIdentity(c config) (identity, error) {
 	if c.AgentID != "" && c.AgentToken != "" {
@@ -198,6 +218,9 @@ func run(c config, i *identity) error {
 		i.AgentID, i.AgentToken = result.AgentID, result.AgentToken
 		if err := os.WriteFile(filepath.Join(c.DataDir, "identity.json"), mustJSON(*i), 0600); err != nil {
 			return err
+		}
+		if exe, err := os.Executable(); err == nil {
+			_ = os.Remove(filepath.Join(filepath.Dir(exe), "setup.json"))
 		}
 	}
 	if err := post(c, "/agents/heartbeat", map[string]string{"agentVersion": info.AgentVersion}, i.AgentToken, nil); err != nil {
