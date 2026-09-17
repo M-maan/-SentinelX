@@ -89,13 +89,14 @@ export default function DevicesPage() {
   }
 
   if (!user || !accessToken) return <main className="auth"><section className="card"><h1>Session required</h1><Link href="/login">Sign in</Link></section></main>;
+  const canManageUsers = user.role === 'SECURITY_ADMIN' || user.role === 'SUPER_ADMIN';
 
   return <div className="shell">
-    <aside className="sidebar"><p className="brand">SENTINELX</p><nav><Link href="/dashboard">Dashboard</Link><Link href="/dashboard/organization">Organization</Link><Link href="/dashboard/users">Users</Link><span>Devices</span></nav></aside>
+    <aside className="sidebar"><p className="brand">SENTINELX</p><nav><Link href="/dashboard">Dashboard</Link><Link href="/dashboard/organization">Organization</Link>{canManageUsers && <Link href="/dashboard/users">Users</Link>}<span>Devices</span></nav></aside>
     <main className="main">
       <Link href="/dashboard">← Dashboard</Link><h1>Devices</h1>
       {error && <p className="error" role="alert">{error}</p>}
-      {(user.role === 'SECURITY_ADMIN' || user.role === 'SUPER_ADMIN') && <section className="card device-setup">
+      {canManageUsers && <section className="card device-setup">
         <h2>Register this Windows device</h2>
         <p>Download a ready-to-run agent package. No API calls, PowerShell commands, or Go installation needed.</p>
         <button className="button" type="button" disabled={downloading} onClick={downloadWindowsSetup}>{downloading ? 'Preparing package…' : 'Download Windows setup'}</button>
