@@ -43,15 +43,24 @@ export class AgentsService {
   async recordTelemetry(agent: Agent, dto: TelemetryDto) { const row = this.telemetry.create({ agentId: agent.id, cpuUsage: dto.cpuUsagePercent, memoryTotal: dto.memoryTotalBytes, memoryUsed: dto.memoryUsedBytes, memoryUsage: dto.memoryUsagePercent, diskTotal: dto.diskTotalBytes, diskUsed: dto.diskUsedBytes, diskUsage: dto.diskUsagePercent, uptimeSeconds: dto.uptimeSeconds, recordedAt: new Date(dto.timestamp) }); await this.telemetry.save(row); await this.agents.update(agent.id, { status: AgentStatus.ONLINE, lastSeen: new Date() }); return { ok: true }; }
   private scope(principal: Principal) { return principal.role === Role.SUPER_ADMIN ? {} : { organizationId: principal.organizationId ?? undefined }; }
   private effectiveStatus(agent: Pick<Agent, 'lastSeen'>) { const threshold = Number(this.config.get('AGENT_OFFLINE_THRESHOLD_SECONDS', 120)); return !agent.lastSeen || Date.now() - agent.lastSeen.getTime() > threshold * 1000 ? AgentStatus.OFFLINE : AgentStatus.ONLINE; }
-  async list(principal: Principal, page = 1, limit = 25, status?: AgentStatus, operatingSystem?: string, search?: string) {
-    const qb = this.agents.createQueryBuilder('agent').orderBy('agent.lastSeen', 'DESC', 'NULLS LAST');
+  async list(principal: Principal, page = 1, limit = 25, status?: AgentStatus, operatingSystem?: string, search?: string, agentVersion?: string, sort = 'lastSeen') {
+    const sortColumn = ({ hostname: 'agent.hostname', status: 'agent.status', recentlyActive: 'agent.lastSeen', lastSeen: 'agent.lastSeen' } as Record<string, string>)[sort] ?? 'agent.lastSeen';
+    const qb = this.agents.createQueryBuilder('agent').orderBy(sortColumn, 'DESC', 'NULLS LAST');
     if (principal.role !== Role.SUPER_ADMIN) qb.andWhere('agent.organization_id = :org', { org: principal.organizationId });
     if (operatingSystem) qb.andWhere('LOWER(agent.operating_system) = LOWER(:os)', { os: operatingSystem });
     if (search) qb.andWhere('(agent.hostname ILIKE :search OR agent.agent_id ILIKE :search)', { search: `%${search}%` });
+    if (agentVersion) qb.andWhere('agent.agent_version ILIKE :agentVersion', { agentVersion: `%${agentVersion}%` });
     const effectiveItems = (await qb.getMany()).map(item => ({ ...item, status: this.effectiveStatus(item) }));
     const filteredItems = status ? effectiveItems.filter(item => item.status === status) : effectiveItems;
     const total = filteredItems.length;
     return { items: filteredItems.slice((page - 1) * limit, page * limit), page, limit, total };
   }
-  async detail(principal: Principal, id: string) { const agent = await this.agents.findOne({ where: { id, ...this.scope(principal) } }); if (!agent) throw new NotFoundException('Device not found'); const latestTelemetry = await this.telemetry.find({ where: { agentId: id }, order: { recordedAt: 'DESC' }, take: 20 }); return { ...agent, status: this.effectiveStatus(agent), latestTelemetry }; }
+  async summary(principal: Principal) {
+    const devices = (await this.agents.find({ where: this.scope(principal) })).map(agent => ({ ...agent, status: this.effectiveStatus(agent) }));
+    const operatingSystems = devices.reduce<Record<string, number>>((result, device) => { result[device.operatingSystem] = (result[device.operatingSystem] ?? 0) + 1; return result; }, {});
+    const agentVersions = devices.reduce<Record<string, number>>((result, device) => { result[device.agentVersion] = (result[device.agentVersion] ?? 0) + 1; return result; }, {});
+    return { totalDevices: devices.length, onlineDevices: devices.filter(device => device.status === AgentStatus.ONLINE).length, offlineDevices: devices.filter(device => device.status === AgentStatus.OFFLINE).length, operatingSystems, agentVersions };
+  }
+  async getTelemetry(principal: Principal, id: string, limit = 30) { const agent = await this.findScoped(principal, id); if (!agent) throw new NotFoundException('Device not found'); return this.telemetry.find({ where: { agentId: agent.id }, order: { recordedAt: 'DESC' }, take: limit }); }
+  async detail(principal: Principal, id: string) { const agent = await this.findScoped(principal, id); if (!agent) throw new NotFoundException('Device not found'); const latestTelemetry = await this.getTelemetry(principal, agent.id, 20); return { ...agent, status: this.effectiveStatus(agent), latestTelemetry }; }
 }
