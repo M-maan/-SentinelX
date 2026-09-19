@@ -21,13 +21,15 @@ export default function DevicesPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [os, setOs] = useState('');
+  const [agentVersion, setAgentVersion] = useState('');
+  const [sort, setSort] = useState('lastSeen');
   const limit = 10;
 
   const load = useCallback(async () => {
     if (!accessToken) return;
     setLoading(true);
     try {
-      const result = await devicesApi.list(accessToken, { page, limit, search, status, os });
+      const result = await devicesApi.list(accessToken, { page, limit, search, status, os, agentVersion, sort });
       setItems(result.items);
       setTotal(result.total);
       setError('');
@@ -36,9 +38,9 @@ export default function DevicesPage() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, page, search, status, os]);
+  }, [accessToken, page, search, status, os, agentVersion, sort]);
 
-  useEffect(() => { void load(); }, [accessToken, page, status, os]);
+  useEffect(() => { void load(); }, [accessToken, page, status, os, sort]);
   useEffect(() => {
     if (!setupExpiresAt) return;
     const timer = window.setInterval(() => { void load(); }, 5000);
@@ -69,7 +71,7 @@ export default function DevicesPage() {
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 60000);
       setSetupExpiresAt(setup.expiresAt);
-      setSearch(''); setStatus(''); setOs(''); setPage(1);
+      setSearch(''); setStatus(''); setOs(''); setAgentVersion(''); setSort('lastSeen'); setPage(1);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not prepare the setup package.');
     } finally {
@@ -104,7 +106,7 @@ export default function DevicesPage() {
         {setupExpiresAt && <div className="setup-notice" role="status"><strong>Package ready.</strong> Start it before {new Date(setupExpiresAt).toLocaleTimeString()}. The setup token is inside the ZIP; keep it private. <button type="button" onClick={revokeSetup}>Revoke package</button></div>}
       </section>}
       <section className="card"><h2>Registered devices</h2>
-        <div className="filters"><input aria-label="Search hostname or agent ID" placeholder="Search hostname or agent ID" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => event.key === 'Enter' && (setPage(1), void load())}/><select aria-label="Status" value={status} onChange={event => { setStatus(event.target.value); setPage(1); }}><option value="">All statuses</option><option>ONLINE</option><option>OFFLINE</option></select><input aria-label="Operating system" placeholder="OS (linux/windows)" value={os} onChange={event => setOs(event.target.value)} onKeyDown={event => event.key === 'Enter' && (setPage(1), void load())}/><button className="button" type="button" onClick={() => { setPage(1); void load(); }}>Apply</button></div>
+        <div className="filters"><input aria-label="Search hostname or agent ID" placeholder="Search hostname or agent ID" value={search} onChange={event => setSearch(event.target.value)}/><select aria-label="Status" value={status} onChange={event => { setStatus(event.target.value); setPage(1); }}><option value="">All statuses</option><option>ONLINE</option><option>OFFLINE</option></select><input aria-label="Operating system" placeholder="OS (linux/windows)" value={os} onChange={event => setOs(event.target.value)}/><input aria-label="Agent version" placeholder="Agent version" value={agentVersion} onChange={event => setAgentVersion(event.target.value)}/><select aria-label="Sort devices" value={sort} onChange={event => { setSort(event.target.value); setPage(1); }}><option value="lastSeen">Last seen</option><option value="recentlyActive">Recently active</option><option value="hostname">Hostname</option><option value="status">Status</option></select><button className="button" type="button" onClick={() => { setPage(1); void load(); }}>Apply</button></div>
         {loading ? <p>Loading…</p> : items.length === 0 ? <p>{search || status || os ? 'No devices match the current filters.' : 'No devices registered yet. Download the Windows setup above to add this PC.'}</p> : <div className="device-list">{items.map(device => <Link className="device-row" href={`/dashboard/devices/${device.id}`} key={device.id}><span><strong>{device.hostname}</strong><br/><small>{device.operatingSystem} · {device.agentVersion} · {device.agentId}</small></span><span className={device.status === 'ONLINE' ? 'online' : 'offline'}>{device.status}</span></Link>)}</div>}
         <div className="pager"><button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button><span>Page {page} · {total} total</span><button disabled={page * limit >= total} onClick={() => setPage(page + 1)}>Next</button></div>
       </section>

@@ -12,6 +12,6 @@ export class AgentTelemetry {
   @Column({ name: 'disk_used', type: 'bigint' }) diskUsed!: number;
   @Column({ name: 'disk_usage', type: 'double precision' }) diskUsage!: number;
   @Column({ name: 'uptime_seconds', type: 'bigint' }) uptimeSeconds!: number;
-  @Column({ name: 'recorded_at', type: 'timestamptz' }) recordedAt!: Date;
+  @Index() @Column({ name: 'recorded_at', type: 'timestamptz' }) recordedAt!: Date;
   @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
 }

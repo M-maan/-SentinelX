@@ -170,4 +170,39 @@ docker compose exec api ./node_modules/.bin/typeorm migration:show -d dist/datab
 
 ## Handover
 
+### Milestone 3 monitoring dashboard
+
+M3 is developed on `feature/m3-monitoring-dashboard` and adds a visibility layer on top of the existing M2 agent data. It does not add detections, alerts, incidents, AI, automated response, or advanced SIEM functionality.
+
+Completed M3 scope:
+
+- Authenticated dashboard summary with total, online, offline, operating-system, and agent-version counts.
+- Organization-scoped device listing with hostname/agent ID search, status/OS/agent-version filters, pagination, and sorting.
+- Device profile view with identity, OS, network, lifecycle, status, and latest telemetry information.
+- Telemetry query endpoint with organization ownership validation and CPU, memory, disk, and uptime data.
+- Responsive health visualizations and recent telemetry history.
+- PostgreSQL indexes for device lookup and telemetry time-series queries.
+
+M3 usage flow:
+
+1. Sign in and open **Dashboard** to see organization-wide device health counts.
+2. Open **Devices**, use search/filter/sort controls, and select a device row.
+3. Review the device profile, latest health bars, uptime, and recent telemetry records.
+4. Generate an enrollment package from Devices only when a Security Admin needs to add another endpoint.
+
+M3 verification commands:
+
+```powershell
+git checkout feature/m3-monitoring-dashboard
+npm run build -w @sentinelx/api
+npm run build -w @sentinelx/web
+npm run lint
+npm run test:smoke -w @sentinelx/web
+npm run migration:run -w @sentinelx/api
+docker compose up -d --build
+docker ps
+```
+
+The dashboard summary and telemetry routes require a valid JWT and enforce organization isolation. TLS, managed secrets, centralized monitoring, backups, and deployment-specific alerting remain operational concerns outside this local M3 implementation.
+
 The `main` branch remains the frozen M1 baseline. Milestone 2 work is isolated to `feature/m2-endpoint-agents` and must not be merged into M1 until its own acceptance checklist passes.
