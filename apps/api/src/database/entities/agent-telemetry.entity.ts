@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('agent_telemetry')
+@Index('IDX_agent_telemetry_agent_recorded_at', ['agentId', 'recordedAt'])
 export class AgentTelemetry {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Index() @Column({ name: 'agent_id', type: 'uuid' }) agentId!: string;
