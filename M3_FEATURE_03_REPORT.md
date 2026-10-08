@@ -111,11 +111,11 @@ The `/api/v1/agents` route, existing authentication/RBAC behavior, existing `ite
 
 ## 17. Commit hash
 
-Pending final Feature 03 commit.
+Implementation commit: `c3c835648f7c9c5501dd775cf67ca502409346b6`.
 
 ## 18. Push status
 
-Pending final Feature 03 commit and push.
+Implementation commit pushed to `origin/feature/m3-03-device-listing`; report finalization is included in the follow-up push.
 
 ## 19. Merge readiness
 
