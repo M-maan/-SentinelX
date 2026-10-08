@@ -112,11 +112,11 @@ Status is derived from `last_seen` and `AGENT_OFFLINE_THRESHOLD_SECONDS`, matchi
 
 ## 14. Commit hash
 
-Pending final Feature 02 commit.
+Implementation commit: `41126eefa2f9cca1671b32a7c81d09fc0985fd86`.
 
 ## 15. Push status
 
-Pending final Feature 02 commit and push.
+Implementation commit pushed to `origin/feature/m3-02-dashboard-api`; report finalization is included in the follow-up push.
 
 ## 16. Merge readiness
 
