@@ -97,11 +97,11 @@ The migration has reversible `up` and `down` methods and does not alter records,
 
 ## 15. Commit hash
 
-The implementation commit hash is recorded after commit in the final handoff. The report-only follow-up commit is recorded separately if applicable.
+Implementation commit: `a244eaf588c6bc75aa1e9f4ad7ba088c94135e18`.
 
 ## 16. Push status
 
-Pending final commit and push.
+Implementation commit pushed to `origin/feature/m3-01-db-indexes`; this report finalization is included in the follow-up push.
 
 ## 17. Merge readiness
 
