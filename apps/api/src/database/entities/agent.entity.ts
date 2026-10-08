@@ -3,6 +3,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 export enum AgentStatus { ONLINE = 'ONLINE', OFFLINE = 'OFFLINE' }
 
 @Entity('agents')
+@Index('IDX_agents_organization_last_seen', ['organizationId', 'lastSeen'])
 export class Agent {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Index() @Column({ name: 'organization_id', type: 'uuid' }) organizationId!: string;
