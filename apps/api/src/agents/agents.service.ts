@@ -7,7 +7,7 @@ import { Agent, AgentStatus } from '../database/entities/agent.entity';
 import { AgentTelemetry } from '../database/entities/agent-telemetry.entity';
 import { Organization } from '../database/entities/organization.entity';
 import { Role } from '../database/entities/user.entity';
-import { EnrollAgentDto, TelemetryDto } from './dto/agent.dto';
+import { DeviceListQueryDto, DeviceSortBy, EnrollAgentDto, SortOrder, TelemetryDto } from './dto/agent.dto';
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 type Principal = { role: Role; organizationId: string | null };
@@ -42,6 +42,33 @@ export class AgentsService {
   async revokeAgentToken(principal: Principal, id: string) { const agent = await this.findScoped(principal, id); if (!agent) throw new NotFoundException('Device not found'); await this.agents.update(agent.id, { credentialRevokedAt: new Date(), status: AgentStatus.OFFLINE }); return { ok: true, revoked: true }; }
   async recordTelemetry(agent: Agent, dto: TelemetryDto) { const row = this.telemetry.create({ agentId: agent.id, cpuUsage: dto.cpuUsagePercent, memoryTotal: dto.memoryTotalBytes, memoryUsed: dto.memoryUsedBytes, memoryUsage: dto.memoryUsagePercent, diskTotal: dto.diskTotalBytes, diskUsed: dto.diskUsedBytes, diskUsage: dto.diskUsagePercent, uptimeSeconds: dto.uptimeSeconds, recordedAt: new Date(dto.timestamp) }); await this.telemetry.save(row); await this.agents.update(agent.id, { status: AgentStatus.ONLINE, lastSeen: new Date() }); return { ok: true }; }
   private scope(principal: Principal) { return principal.role === Role.SUPER_ADMIN ? {} : { organizationId: principal.organizationId ?? undefined }; }
-  async list(principal: Principal, page = 1, limit = 25, status?: AgentStatus, operatingSystem?: string, search?: string) { const qb = this.agents.createQueryBuilder('agent').orderBy('agent.lastSeen', 'DESC', 'NULLS LAST').skip((page - 1) * limit).take(limit); if (principal.role !== Role.SUPER_ADMIN) qb.andWhere('agent.organization_id = :org', { org: principal.organizationId }); if (status) qb.andWhere('agent.status = :status', { status }); if (operatingSystem) qb.andWhere('LOWER(agent.operating_system) = LOWER(:os)', { os: operatingSystem }); if (search) qb.andWhere('(agent.hostname ILIKE :search OR agent.agent_id ILIKE :search)', { search: `%${search}%` }); const [items, total] = await qb.getManyAndCount(); const threshold = Number(this.config.get('AGENT_OFFLINE_THRESHOLD_SECONDS', 120)); const now = Date.now(); return { items: items.map(item => ({ ...item, status: !item.lastSeen || now - item.lastSeen.getTime() > threshold * 1000 ? AgentStatus.OFFLINE : AgentStatus.ONLINE })), page, limit, total }; }
+  async list(principal: Principal, query: DeviceListQueryDto = {}) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const threshold = Number(this.config.get('AGENT_OFFLINE_THRESHOLD_SECONDS', 120));
+    const cutoff = new Date(Date.now() - threshold * 1000);
+    const qb = this.agents.createQueryBuilder('agent');
+    const effectiveStatus = 'CASE WHEN agent.last_seen IS NOT NULL AND agent.last_seen >= :cutoff THEN 0 ELSE 1 END';
+
+    if (principal.role !== Role.SUPER_ADMIN) qb.andWhere('agent.organization_id = :org', { org: principal.organizationId });
+    qb.setParameter('cutoff', cutoff);
+    if (query.status === AgentStatus.ONLINE) qb.andWhere('agent.last_seen IS NOT NULL AND agent.last_seen >= :cutoff');
+    if (query.status === AgentStatus.OFFLINE) qb.andWhere('(agent.last_seen IS NULL OR agent.last_seen < :cutoff)');
+    if (query.os) qb.andWhere('LOWER(agent.operating_system) = LOWER(:os)', { os: query.os });
+    if (query.agentVersion) qb.andWhere('LOWER(agent.agent_version) = LOWER(:agentVersion)', { agentVersion: query.agentVersion });
+    if (query.hostname) qb.andWhere('LOWER(agent.hostname) = LOWER(:hostname)', { hostname: query.hostname });
+    if (query.search) qb.andWhere(`agent.hostname ILIKE :search ESCAPE '\\'`, { search: `%${this.escapeLike(query.search)}%` });
+
+    const direction = query.sortOrder === SortOrder.ASC ? 'ASC' : 'DESC';
+    if (query.sortBy === DeviceSortBy.HOSTNAME) qb.orderBy('agent.hostname', direction).addOrderBy('agent.id', 'ASC');
+    else if (query.sortBy === DeviceSortBy.STATUS) qb.orderBy(effectiveStatus, direction).addOrderBy('agent.id', 'ASC');
+    else if (query.sortBy === DeviceSortBy.RECENTLY_ACTIVE) qb.orderBy(effectiveStatus, direction).addOrderBy('agent.last_seen', direction, 'NULLS LAST').addOrderBy('agent.id', 'ASC');
+    else qb.orderBy('agent.last_seen', direction, 'NULLS LAST').addOrderBy('agent.id', 'ASC');
+
+    const [items, total] = await qb.skip((page - 1) * limit).take(limit).getManyAndCount();
+    return { items: items.map(item => ({ ...item, status: this.effectiveStatus(item.lastSeen, threshold) })), page, limit, total, totalPages: total === 0 ? 0 : Math.ceil(total / limit) };
+  }
+  private effectiveStatus(lastSeen: Date | null, threshold: number) { return lastSeen && Date.now() - lastSeen.getTime() <= threshold * 1000 ? AgentStatus.ONLINE : AgentStatus.OFFLINE; }
+  private escapeLike(value: string) { return value.replace(/[\\%_]/g, character => `\\${character}`); }
   async detail(principal: Principal, id: string) { const agent = await this.agents.findOne({ where: { id, ...this.scope(principal) } }); if (!agent) throw new NotFoundException('Device not found'); const latestTelemetry = await this.telemetry.find({ where: { agentId: id }, order: { recordedAt: 'DESC' }, take: 20 }); return { ...agent, latestTelemetry }; }
 }
