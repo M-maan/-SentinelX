@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { DashboardSummary, monitoringApi } from '../../lib/monitoring.api';
 import { devicesApi } from '../../lib/devices.api';
+import { monitoringPolling } from '../../lib/query-config';
 import { useAuthStore } from '../../lib/auth-store';
 import { EmptyState, ErrorState, LoadingSkeleton, MetricCard, PageHeader, RefreshButton, SectionCard } from '../../components/monitoring-ui';
 import { OsDistributionChart, StatusDistributionChart } from '../../components/dashboard-charts';
@@ -12,16 +13,17 @@ const emptySummary: DashboardSummary = { totalDevices: 0, onlineDevices: 0, offl
 
 export default function Dashboard() {
   const { accessToken, user } = useAuthStore(); const [selectedDeviceId, setSelectedDeviceId] = useState('');
-  const summary = useQuery({ queryKey: ['dashboard-summary'], queryFn: () => monitoringApi.summary(accessToken!), enabled: Boolean(accessToken), placeholderData: keepPreviousData, retry: false });
-  const devices = useQuery({ queryKey: ['dashboard-devices'], queryFn: () => devicesApi.list(accessToken!, { page: 1, limit: 100 }), enabled: Boolean(accessToken), placeholderData: keepPreviousData, retry: false });
+  const summary = useQuery({ queryKey: ['dashboard-summary'], queryFn: () => monitoringApi.summary(accessToken!), enabled: Boolean(accessToken), placeholderData: keepPreviousData, ...monitoringPolling });
+  const devices = useQuery({ queryKey: ['dashboard-devices'], queryFn: () => devicesApi.list(accessToken!, { page: 1, limit: 100 }), enabled: Boolean(accessToken), placeholderData: keepPreviousData, ...monitoringPolling });
   useEffect(() => { if (!selectedDeviceId && devices.data?.items[0]) setSelectedDeviceId(devices.data.items[0].id); }, [devices.data, selectedDeviceId]);
-  const detail = useQuery({ queryKey: ['dashboard-device-detail', selectedDeviceId], queryFn: () => devicesApi.detail(accessToken!, selectedDeviceId), enabled: Boolean(accessToken && selectedDeviceId), placeholderData: keepPreviousData, retry: false });
+  const detail = useQuery({ queryKey: ['dashboard-device-detail', selectedDeviceId], queryFn: () => devicesApi.detail(accessToken!, selectedDeviceId), enabled: Boolean(accessToken && selectedDeviceId), placeholderData: keepPreviousData, ...monitoringPolling });
   const refresh = () => { void Promise.all([summary.refetch(), devices.refetch(), detail.refetch()]); };
   if (!user || !accessToken) return null;
   if (summary.isPending && !summary.data) return <div className="console-page"><PageHeader title="Monitoring dashboard" description="Loading your authorized endpoint summary." /><LoadingSkeleton rows={6} /></div>;
   if (summary.isError && !summary.data) return <div className="console-page"><PageHeader title="Monitoring dashboard" description="Your endpoint visibility summary." /><ErrorState message={summary.error instanceof Error ? summary.error.message : 'Unable to load dashboard summary.'} onRetry={refresh} /></div>;
   const data = summary.data ?? emptySummary; const telemetry = detail.data?.latestTelemetry?.[0]; const refreshing = summary.isFetching || devices.isFetching || detail.isFetching;
   return <div className="console-page"><PageHeader title="Monitoring dashboard" description={`Live endpoint visibility for ${user.organization?.name ?? 'your organization'}.`} action={<RefreshButton onClick={refresh} busy={refreshing} />} />
+    {(summary.isError && summary.data) && <p className="background-refresh refresh-warning" role="alert">Dashboard refresh failed; showing the last successful data.</p>}
     <div className="metric-grid dashboard-metrics"><MetricCard label="Total devices" value={data.totalDevices} detail="Enrolled endpoints" /><MetricCard label="Online devices" value={data.onlineDevices} detail="Within heartbeat threshold" /><MetricCard label="Offline devices" value={data.offlineDevices} detail="Stale or missing heartbeat" /><MetricCard label="Operating systems" value={data.osDistribution.length} detail="Distinct reported categories" /></div>
     {data.totalDevices === 0 && <EmptyState title="No devices enrolled yet" description="Enroll an endpoint to start seeing real monitoring data in this workspace." />}
     <div className="dashboard-grid"><SectionCard title="Device status"><StatusDistributionChart online={data.onlineDevices} offline={data.offlineDevices} /></SectionCard><SectionCard title="Operating systems"><OsDistributionChart data={data.osDistribution} /></SectionCard></div>

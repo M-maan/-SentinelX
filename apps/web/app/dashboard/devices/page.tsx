@@ -6,6 +6,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { DeviceStatusBadge, EmptyState, ErrorState, LoadingSkeleton, PageHeader, RefreshButton, ResponsiveTableContainer, SectionCard } from '../../../components/monitoring-ui';
 import { useAuthStore } from '../../../lib/auth-store';
 import { devicesApi } from '../../../lib/devices.api';
+import { monitoringPolling } from '../../../lib/query-config';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const SORT_OPTIONS = [
@@ -41,7 +42,7 @@ export default function DevicesPage() {
   useEffect(() => setPage(1), [search]);
 
   const filters = useMemo(() => ({ page, limit, search, status: status || undefined, os: os.trim() || undefined, agentVersion: agentVersion.trim() || undefined, hostname: hostname.trim() || undefined, sortBy, sortOrder }), [page, limit, search, status, os, agentVersion, hostname, sortBy, sortOrder]);
-  const devices = useQuery({ queryKey: ['devices', filters], queryFn: () => devicesApi.list(accessToken!, filters), enabled: Boolean(accessToken), placeholderData: keepPreviousData, retry: false });
+  const devices = useQuery({ queryKey: ['devices', filters], queryFn: () => devicesApi.list(accessToken!, filters), enabled: Boolean(accessToken), placeholderData: keepPreviousData, ...monitoringPolling });
 
   if (!user || !accessToken) return null;
 
@@ -67,10 +68,11 @@ export default function DevicesPage() {
         <button type="button" className="button secondary filter-clear" onClick={clearFilters} disabled={!hasFilters}>Clear filters</button>
       </div>
       <div className="device-list-toolbar"><div className="sort-controls"><label htmlFor="device-sort">Sort by</label><select id="device-sort" value={sortBy} onChange={event => changeSort(event.target.value)}>{SORT_OPTIONS.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</select><button type="button" className="button secondary compact-button" onClick={toggleSortOrder} aria-label={`Sort ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}>{sortOrder === 'asc' ? 'Ascending ↑' : 'Descending ↓'}</button></div>{result && <span className="muted">{result.total} matching device{result.total === 1 ? '' : 's'}</span>}</div>
-      {devices.isError ? <ErrorState message="Unable to load devices. Your session or organization access may have changed." onRetry={() => void devices.refetch()} /> : devices.isPending && !result ? <LoadingSkeleton rows={6} /> : result && result.items.length === 0 ? <EmptyState title={hasFilters ? 'No matching devices' : 'No devices enrolled'} description={hasFilters ? 'Try clearing a filter or changing the search criteria.' : 'Enrolled devices in your organization will appear here.'} action={hasFilters ? <button type="button" className="button secondary" onClick={clearFilters}>Clear filters</button> : undefined} /> : result && <>
+      {devices.isError && !result ? <ErrorState message="Unable to load devices. Your session or organization access may have changed." onRetry={() => void devices.refetch()} /> : devices.isPending && !result ? <LoadingSkeleton rows={6} /> : result && result.items.length === 0 ? <EmptyState title={hasFilters ? 'No matching devices' : 'No devices enrolled'} description={hasFilters ? 'Try clearing a filter or changing the search criteria.' : 'Enrolled devices in your organization will appear here.'} action={hasFilters ? <button type="button" className="button secondary" onClick={clearFilters}>Clear filters</button> : undefined} /> : result && <>
         <ResponsiveTableContainer><table className="device-table"><caption className="sr-only">Enrolled devices</caption><thead><tr><th scope="col">Hostname</th><th scope="col">Operating system</th><th scope="col">IP address</th><th scope="col">Agent version</th><th scope="col">Status</th><th scope="col">Last seen</th></tr></thead><tbody>{result.items.map(device => <tr key={device.id}><td><Link className="device-name-link" href={`/dashboard/devices/${device.id}`}>{device.hostname}</Link><small className="muted">Agent {device.agentId}</small></td><td>{displayValue(device.operatingSystem)}{device.osVersion && <small className="muted">{device.osVersion}</small>}</td><td>{displayValue(device.ipAddress)}</td><td>{displayValue(device.agentVersion)}</td><td><DeviceStatusBadge status={device.status} /></td><td>{formatDate(device.lastSeen)}</td></tr>)}</tbody></table></ResponsiveTableContainer>
         <div className="device-pagination"><label htmlFor="device-page-size">Rows per page</label><select id="device-page-size" value={limit} onChange={event => changeLimit(event.target.value)}><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option></select><span className="muted">Page {result.page} of {result.totalPages || 1}</span><button type="button" className="button secondary compact-button" disabled={result.page <= 1 || devices.isFetching} onClick={() => setPage(current => Math.max(1, current - 1))}>Previous</button><button type="button" className="button secondary compact-button" disabled={result.totalPages === 0 || result.page >= result.totalPages || devices.isFetching} onClick={() => setPage(current => current + 1)}>Next</button></div>
       </>}
+      {devices.isError && result && <p className="background-refresh refresh-warning" role="alert">Inventory refresh failed; showing the last successful page.</p>}
       {devices.isFetching && result && <p className="background-refresh" role="status">Updating device inventory…</p>}
     </SectionCard>
   </div>;
