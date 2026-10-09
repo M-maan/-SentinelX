@@ -1,3 +1,13 @@
 'use client';
-import Link from 'next/link'; import { useRouter } from 'next/navigation'; import { useAuthStore } from '../../lib/auth-store'; import { authApi } from '../../lib/auth.api';
-export default function Dashboard(){const router=useRouter();const {user,clear}=useAuthStore();if(!user)return <main className="auth"><section className="card"><h1>Session required</h1><button className="button" onClick={()=>router.push('/login')}>Sign in</button></section></main>;return <div className="shell"><aside className="sidebar"><p className="brand">SENTINELX</p><nav><span>Dashboard</span><Link href="/dashboard/organization">Organization</Link>{user.role === 'SUPER_ADMIN' && <Link href="/dashboard/organizations">Organizations</Link>}<Link href="/dashboard/users">Users</Link><Link href="/dashboard/devices">Devices</Link></nav></aside><main className="main"><header className="topbar"><div><strong>{user.organization?.name}</strong><div>{user.role.replace('_',' ')}</div></div><button className="button" style={{width:'auto'}} onClick={async()=>{await authApi.logout().catch(()=>undefined);clear();router.push('/login')}}>Sign out</button></header><h1>Welcome, {user.name}</h1><section className="empty">Your security workspace is ready. Endpoint devices can now be enrolled and viewed from Devices.</section></main></div>}
+
+import { EmptyState, MetricCard, PageHeader, SectionCard } from '../../components/monitoring-ui';
+import { useAuthStore } from '../../lib/auth-store';
+
+export default function Dashboard() {
+  const user = useAuthStore(state => state.user);
+  return <div className="console-page">
+    <PageHeader title={`Welcome, ${user?.name ?? 'operator'}`} description="Your secure endpoint monitoring workspace." />
+    <div className="metric-grid"><MetricCard label="Monitoring status" value="Ready" detail="Connected to SentinelX" /><MetricCard label="Organization" value={user?.organization?.name ?? '—'} detail={user?.role?.replace('_', ' ')} /><MetricCard label="Next step" value="Devices" detail="Review enrolled endpoints" /></div>
+    <SectionCard title="Monitoring foundation"><EmptyState title="Your security workspace is ready" description="Dashboard metrics and device monitoring views will appear here as the monitoring console expands." /></SectionCard>
+  </div>;
+}
