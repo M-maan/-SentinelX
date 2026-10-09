@@ -7,7 +7,7 @@ import { Agent, AgentStatus } from '../database/entities/agent.entity';
 import { AgentTelemetry } from '../database/entities/agent-telemetry.entity';
 import { Organization } from '../database/entities/organization.entity';
 import { Role } from '../database/entities/user.entity';
-import { DeviceListQueryDto, DeviceSortBy, EnrollAgentDto, SortOrder, TelemetryDto } from './dto/agent.dto';
+import { DeviceListQueryDto, DeviceSortBy, EnrollAgentDto, SortOrder, TelemetryDto, TelemetryQueryDto } from './dto/agent.dto';
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 type Principal = { role: Role; organizationId: string | null };
@@ -37,7 +37,8 @@ export class AgentsService {
 
   async heartbeat(agent: Agent, agentVersion?: string, ipAddress?: string) { await this.agents.update(agent.id, { status: AgentStatus.ONLINE, lastSeen: new Date(), ...(agentVersion ? { agentVersion } : {}), ...(ipAddress ? { ipAddress } : {}) }); return { ok: true, status: AgentStatus.ONLINE, lastSeen: new Date().toISOString() }; }
   async revokeEnrollmentToken(organizationId: string) { await this.organizations.update(organizationId, { enrollmentTokenRevokedAt: new Date() }); return { ok: true, revoked: true }; }
-  private async findScoped(principal: Principal, identifier: string) { const scope = this.scope(principal); return this.agents.findOne({ where: [{ id: identifier, ...scope }, { agentId: identifier, ...scope }] }); }
+  private async findScoped(principal: Principal, identifier: string) { const scope = this.scope(principal); const where = this.isUuid(identifier) ? [{ id: identifier, ...scope }, { agentId: identifier, ...scope }] : [{ agentId: identifier, ...scope }]; return this.agents.findOne({ where }); }
+  private isUuid(value: string) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value); }
   async rotateAgentToken(principal: Principal, id: string) { const agent = await this.findScoped(principal, id); if (!agent) throw new NotFoundException('Device not found'); const token = randomBytes(32).toString('base64url'); await this.agents.update(agent.id, { credentialHash: hash(token), credentialRevokedAt: null }); return { id: agent.id, agentId: agent.agentId, agentToken: token }; }
   async revokeAgentToken(principal: Principal, id: string) { const agent = await this.findScoped(principal, id); if (!agent) throw new NotFoundException('Device not found'); await this.agents.update(agent.id, { credentialRevokedAt: new Date(), status: AgentStatus.OFFLINE }); return { ok: true, revoked: true }; }
   async recordTelemetry(agent: Agent, dto: TelemetryDto) { const row = this.telemetry.create({ agentId: agent.id, cpuUsage: dto.cpuUsagePercent, memoryTotal: dto.memoryTotalBytes, memoryUsed: dto.memoryUsedBytes, memoryUsage: dto.memoryUsagePercent, diskTotal: dto.diskTotalBytes, diskUsed: dto.diskUsedBytes, diskUsage: dto.diskUsagePercent, uptimeSeconds: dto.uptimeSeconds, recordedAt: new Date(dto.timestamp) }); await this.telemetry.save(row); await this.agents.update(agent.id, { status: AgentStatus.ONLINE, lastSeen: new Date() }); return { ok: true }; }
@@ -106,5 +107,15 @@ export class AgentsService {
         createdAt: row.createdAt,
       })),
     };
+  }
+  async telemetryHistory(principal: Principal, identifier: string, query: TelemetryQueryDto = {}) {
+    const agent = await this.findScoped(principal, identifier);
+    if (!agent) throw new NotFoundException('Device not found');
+    const limit = query.latest ? 1 : query.limit ?? 50;
+    const rows = await this.telemetry.find({ where: { agentId: agent.id }, order: { recordedAt: 'DESC', id: 'DESC' }, take: limit });
+    return { items: rows.map(row => this.telemetryResponse(row)), total: rows.length, limit };
+  }
+  private telemetryResponse(row: AgentTelemetry) {
+    return { id: row.id, agentId: row.agentId, cpuUsage: row.cpuUsage, memoryTotal: row.memoryTotal, memoryUsed: row.memoryUsed, memoryUsage: row.memoryUsage, diskTotal: row.diskTotal, diskUsed: row.diskUsed, diskUsage: row.diskUsage, uptimeSeconds: row.uptimeSeconds, recordedAt: row.recordedAt, createdAt: row.createdAt };
   }
 }

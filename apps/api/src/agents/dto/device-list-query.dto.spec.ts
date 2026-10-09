@@ -1,6 +1,6 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { DeviceListQueryDto } from './agent.dto';
+import { DeviceListQueryDto, TelemetryQueryDto } from './agent.dto';
 
 describe('DeviceListQueryDto', () => {
   it('transforms valid numeric pagination values', async () => {
@@ -20,5 +20,18 @@ describe('DeviceListQueryDto', () => {
     const dto = plainToInstance(DeviceListQueryDto, { status: 'UNKNOWN', search: 'x'.repeat(256) });
     const errors = await validate(dto);
     expect(errors.map(error => error.property)).toEqual(expect.arrayContaining(['status', 'search']));
+  });
+
+  it('validates bounded telemetry query parameters', async () => {
+    const dto = plainToInstance(TelemetryQueryDto, { limit: '100', latest: 'true' });
+    expect(await validate(dto)).toHaveLength(0);
+    expect(dto.limit).toBe(100);
+    expect(dto.latest).toBe(true);
+  });
+
+  it('rejects invalid telemetry limits and booleans', async () => {
+    const dto = plainToInstance(TelemetryQueryDto, { limit: '101', latest: 'sometimes' });
+    const errors = await validate(dto);
+    expect(errors.map(error => error.property)).toEqual(expect.arrayContaining(['limit', 'latest']));
   });
 });
