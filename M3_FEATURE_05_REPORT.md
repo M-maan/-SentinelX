@@ -50,6 +50,8 @@ Example recent response:
 
 Devices without telemetry return HTTP 200 with `items: []`, `total: 0`, and the effective `limit`. Unknown or unauthorized devices return the established HTTP 404 not-found response.
 
+`total` is the number of records returned in the bounded response, not the total number of matching telemetry records stored for the device. The endpoint intentionally avoids an unbounded history count query.
+
 ## 6. Metric units and null handling
 
 - `cpuUsage`, `memoryUsage`, and `diskUsage` are stored percentage values.
