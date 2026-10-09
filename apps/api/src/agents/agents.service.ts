@@ -70,5 +70,41 @@ export class AgentsService {
   }
   private effectiveStatus(lastSeen: Date | null, threshold: number) { return lastSeen && Date.now() - lastSeen.getTime() <= threshold * 1000 ? AgentStatus.ONLINE : AgentStatus.OFFLINE; }
   private escapeLike(value: string) { return value.replace(/[\\%_]/g, character => `\\${character}`); }
-  async detail(principal: Principal, id: string) { const agent = await this.agents.findOne({ where: { id, ...this.scope(principal) } }); if (!agent) throw new NotFoundException('Device not found'); const latestTelemetry = await this.telemetry.find({ where: { agentId: id }, order: { recordedAt: 'DESC' }, take: 20 }); return { ...agent, latestTelemetry }; }
+  async detail(principal: Principal, id: string) {
+    const agent = await this.agents.findOne({ where: { id, ...this.scope(principal) } });
+    if (!agent) throw new NotFoundException('Device not found');
+    const latestTelemetry = await this.telemetry.find({ where: { agentId: agent.id }, order: { recordedAt: 'DESC', id: 'DESC' }, take: 1 });
+    const threshold = Number(this.config.get('AGENT_OFFLINE_THRESHOLD_SECONDS', 120));
+    return {
+      id: agent.id,
+      agentId: agent.agentId,
+      hostname: agent.hostname,
+      operatingSystem: agent.operatingSystem,
+      osVersion: agent.osVersion,
+      architecture: agent.architecture,
+      ipAddress: agent.ipAddress,
+      status: this.effectiveStatus(agent.lastSeen, threshold),
+      agentVersion: agent.agentVersion,
+      credentialRevokedAt: agent.credentialRevokedAt,
+      firstSeen: agent.firstSeen,
+      lastSeen: agent.lastSeen,
+      createdAt: agent.createdAt,
+      updatedAt: agent.updatedAt,
+      organizationId: agent.organizationId,
+      latestTelemetry: latestTelemetry.map(row => ({
+        id: row.id,
+        agentId: row.agentId,
+        cpuUsage: row.cpuUsage,
+        memoryTotal: row.memoryTotal,
+        memoryUsed: row.memoryUsed,
+        memoryUsage: row.memoryUsage,
+        diskTotal: row.diskTotal,
+        diskUsed: row.diskUsed,
+        diskUsage: row.diskUsage,
+        uptimeSeconds: row.uptimeSeconds,
+        recordedAt: row.recordedAt,
+        createdAt: row.createdAt,
+      })),
+    };
+  }
 }
