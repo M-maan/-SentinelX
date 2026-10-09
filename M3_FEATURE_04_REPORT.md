@@ -75,9 +75,9 @@ The populated endpoint verification used an isolated disposable local database r
 
 ## 12. Commit and push status
 
-Implementation commit: pending report finalization.
+Implementation commit: `62ff9f7c2e9cbfdf7b1bd9bc4f06e4e1c10e28c9`.
 
-Feature branch push: pending.
+Feature branch push: pending report finalization.
 
 ## 13. Merge readiness
 
