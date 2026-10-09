@@ -2,13 +2,30 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { DeviceStatusBadge, EmptyState, ErrorState, LoadingSkeleton, PageHeader, SectionCard } from '../../../../components/monitoring-ui';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { DeviceStatusBadge, EmptyState, ErrorState, LoadingSkeleton, MetricCard, PageHeader, RefreshButton, SectionCard } from '../../../../components/monitoring-ui';
 import { useAuthStore } from '../../../../lib/auth-store';
-import { DeviceDetail, devicesApi } from '../../../../lib/devices.api';
+import { devicesApi } from '../../../../lib/devices.api';
+import { displayDetailValue, formatBytes, formatDetailDate, formatDuration, formatPercent } from '../../../../lib/device-detail.format';
 
 export default function DeviceDetailPage() {
-  const { id } = useParams<{ id: string }>(); const { accessToken } = useAuthStore(); const [device, setDevice] = useState<DeviceDetail | null>(null); const [error, setError] = useState('');
-  useEffect(() => { if (accessToken && id) devicesApi.detail(accessToken, id).then(setDevice).catch(value => setError(value instanceof Error ? value.message : 'Unable to load device')); }, [accessToken, id]);
-  return <div className="console-page"><Link href="/dashboard/devices" className="muted">← Devices</Link>{error ? <ErrorState message={error} /> : !device ? <LoadingSkeleton rows={4} /> : <><PageHeader title={device.hostname} description={`${device.operatingSystem} ${device.osVersion} · ${device.architecture}`} action={<DeviceStatusBadge status={device.status} />} /><SectionCard title="Device details"><div className="detail-grid"><div><span className="muted">Agent ID</span><strong>{device.agentId}</strong></div><div><span className="muted">Agent version</span><strong>{device.agentVersion}</strong></div><div><span className="muted">Last seen</span><strong>{device.lastSeen ?? 'Never'}</strong></div><div><span className="muted">IP address</span><strong>{device.ipAddress ?? 'Not reported'}</strong></div></div></SectionCard><SectionCard title="Latest telemetry">{device.latestTelemetry.length === 0 ? <EmptyState title="No telemetry received" description="This device has not reported telemetry yet." /> : <div className="telemetry-summary">{device.latestTelemetry.map(record => <div className="telemetry-row" key={record.id}><span className="muted">{new Date(record.recordedAt).toLocaleString()}</span><span>CPU {record.cpuUsage}%</span><span>Memory {record.memoryUsage ?? '—'}%</span><span>Disk {record.diskUsage ?? '—'}%</span></div>)}</div>}</SectionCard></>}</div>;
+  const { id } = useParams<{ id: string }>();
+  const { accessToken, user } = useAuthStore();
+  const device = useQuery({ queryKey: ['device-detail', id], queryFn: () => devicesApi.detail(accessToken!, id), enabled: Boolean(accessToken && id), placeholderData: keepPreviousData, retry: false });
+  const record = device.data?.latestTelemetry?.[0];
+  const retry = () => { void device.refetch(); };
+  const errorMessage = device.error instanceof Error && device.error.message.includes('session expired') ? device.error.message : 'Unable to load this device. It may not exist or may be outside your organization.';
+
+  if (!user || !accessToken) return null;
+
+  return <div className="console-page">
+    <Link href="/dashboard/devices" className="back-link">← Back to Devices</Link>
+    {device.isError ? <ErrorState message={errorMessage} onRetry={retry} /> : device.isPending && !device.data ? <LoadingSkeleton rows={6} /> : device.data ? <>
+      <PageHeader title={device.data.hostname} description={`${displayDetailValue(device.data.operatingSystem)} · Last seen ${formatDetailDate(device.data.lastSeen)}`} action={<div className="detail-header-actions"><DeviceStatusBadge status={device.data.status} /><RefreshButton onClick={retry} busy={device.isFetching} /></div>} />
+      {device.isFetching && <p className="background-refresh" role="status">Refreshing endpoint information…</p>}
+      <div className="detail-section-grid"><SectionCard title="Device information"><div className="detail-grid"><div><span className="muted">Hostname</span><strong>{device.data.hostname}</strong></div><div><span className="muted">Agent ID</span><strong>{device.data.agentId}</strong></div><div><span className="muted">Operating system</span><strong>{displayDetailValue(device.data.operatingSystem)}</strong></div><div><span className="muted">OS version</span><strong>{displayDetailValue(device.data.osVersion)}</strong></div><div><span className="muted">Architecture</span><strong>{displayDetailValue(device.data.architecture)}</strong></div><div><span className="muted">IP address</span><strong>{displayDetailValue(device.data.ipAddress)}</strong></div></div></SectionCard><SectionCard title="Agent information"><div className="detail-grid"><div><span className="muted">Agent version</span><strong>{displayDetailValue(device.data.agentVersion)}</strong></div><div><span className="muted">Current status</span><strong><DeviceStatusBadge status={device.data.status} /></strong></div><div><span className="muted">First seen</span><strong>{formatDetailDate(device.data.firstSeen)}</strong></div><div><span className="muted">Last seen</span><strong>{formatDetailDate(device.data.lastSeen)}</strong></div></div></SectionCard></div>
+      <SectionCard title="System health overview"><p className="muted section-intro">Latest stored telemetry from this endpoint. No health score or threat classification is inferred.</p>{record ? <div className="health-metrics"><MetricCard label="CPU usage" value={formatPercent(record.cpuUsage)} detail="Reported percentage" /><MetricCard label="Memory usage" value={formatPercent(record.memoryUsage)} detail="Reported percentage" /><MetricCard label="Disk usage" value={formatPercent(record.diskUsage)} detail="Reported percentage" /><MetricCard label="Uptime" value={formatDuration(record.uptimeSeconds)} detail="Reported duration" /></div> : <EmptyState title="No telemetry received" description="This endpoint has not reported system health telemetry yet." />}</SectionCard>
+      <SectionCard title="Latest telemetry">{record ? <div className="telemetry-detail-grid"><div><span className="muted">Recorded</span><strong>{formatDetailDate(record.recordedAt)}</strong></div><div><span className="muted">CPU</span><strong>{formatPercent(record.cpuUsage)}</strong></div><div><span className="muted">Memory</span><strong>{formatPercent(record.memoryUsage)}</strong><small className="muted">{formatBytes(record.memoryUsed)} / {formatBytes(record.memoryTotal)}</small></div><div><span className="muted">Disk</span><strong>{formatPercent(record.diskUsage)}</strong><small className="muted">{formatBytes(record.diskUsed)} / {formatBytes(record.diskTotal)}</small></div><div><span className="muted">Uptime</span><strong>{formatDuration(record.uptimeSeconds)}</strong></div></div> : <EmptyState title="Telemetry unavailable" description="No stored telemetry record is available for this endpoint." />}</SectionCard>
+    </> : null}
+  </div>;
 }
