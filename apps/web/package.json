@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "node ../../scripts/lint.mjs",
+    "test:verification": "node scripts/feature12-verification.mjs",
     "test:smoke": "node scripts/frontend-smoke.mjs"
   },
   "dependencies": {
