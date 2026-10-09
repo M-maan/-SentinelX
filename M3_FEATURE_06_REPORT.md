@@ -116,7 +116,7 @@ Implementation commit: `fbadb2f2041ce9c04f23bf513bd98d66453d51c2`.
 
 ## 16. Report commit hash
 
-Pending report finalization.
+Report commit: `3831c1730e4510f7a7b7e20f4f5fab01585bd831`.
 
 ## 17. Push status
 
