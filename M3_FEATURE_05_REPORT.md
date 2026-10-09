@@ -119,11 +119,11 @@ The populated API verification used an isolated disposable PostgreSQL database r
 
 ## 16. Implementation commit hash
 
-Pending final commit.
+Implementation commit: `ce2b8902933214fc341b3a63ac5366f7ce84106f`.
 
 ## 17. Push status
 
-Pending final push.
+Push pending report finalization.
 
 ## 18. Merge readiness
 
