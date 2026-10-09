@@ -9,5 +9,5 @@ export default function OrganizationPage() {
   const [organization, setOrganization] = useState<Pick<Organization, 'id' | 'name' | 'industry'> | null>(user?.organization ?? null);
   const [error, setError] = useState('');
   useEffect(() => { if (accessToken) organizationsApi.current(accessToken).then(setOrganization).catch(e => setError(e.message)); }, [accessToken]);
-  return <main className="main"><Link href="/dashboard">← Dashboard</Link><h1>Organization</h1>{error && <p className="error">{error}</p>}<section className="card" style={{ width: 'min(100%, 620px)' }}><h2>{organization?.name ?? 'Loading...'}</h2><p>Industry: {organization?.industry ?? 'Not set'}</p><p>Your role: {user?.role?.replace('_', ' ')}</p></section></main>;
+  return <div className="console-page"><Link href="/dashboard">← Dashboard</Link><h1>Organization</h1>{error && <p className="error">{error}</p>}<section className="section-card" style={{ width: 'min(100%, 620px)' }}><h2>{organization?.name ?? 'Loading...'}</h2><p>Industry: {organization?.industry ?? 'Not set'}</p><p>Your role: {user?.role?.replace('_', ' ')}</p></section></div>;
 }
