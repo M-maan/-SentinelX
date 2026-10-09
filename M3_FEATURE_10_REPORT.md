@@ -72,7 +72,7 @@ Charts use responsive containers and adapt from three columns to two columns and
 ## Git delivery
 
 - Base M3 commit: `8f2adcadbf5531dba034edc77fabb2a0adba5b64`
-- Implementation commit: pending
+- Implementation commit: `7d2b0492c8c35070a302a272bdbae41efca69d96`
 - Report commit: pending
 - Final remote HEAD: pending
 - Push status: pending
