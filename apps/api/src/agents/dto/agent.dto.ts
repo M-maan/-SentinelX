@@ -1,5 +1,5 @@
-import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, MaxLength, Min, IsISO8601 } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, MaxLength, Min, IsISO8601 } from 'class-validator';
 import { AgentStatus } from '../../database/entities/agent.entity';
 
 export class EnrollAgentDto {
@@ -27,6 +27,13 @@ export class DeviceListQueryDto {
   @IsOptional() @IsString() @MaxLength(255) search?: string;
   @IsOptional() @IsEnum(DeviceSortBy) sortBy?: DeviceSortBy;
   @IsOptional() @IsEnum(SortOrder) sortOrder?: SortOrder;
+}
+
+const parseBoolean = ({ value }: { value: unknown }) => typeof value === 'string' ? value.toLowerCase() === 'true' ? true : value.toLowerCase() === 'false' ? false : value : value;
+
+export class TelemetryQueryDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
+  @IsOptional() @Transform(parseBoolean) @IsBoolean() latest?: boolean;
 }
 
 export class TelemetryDto {
