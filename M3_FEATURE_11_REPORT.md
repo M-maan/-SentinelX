@@ -73,7 +73,7 @@ Feature 11 adds lightweight TanStack Query polling to the existing monitoring co
 ## Git delivery
 
 - Base M3 commit: `773581cf733afa7f8471cc54d627ac41e1f4eaf4`
-- Implementation commit: pending
+- Implementation commit: `2c074deadbef6c7e5e360ec1ea06146041ceef10`
 - Report commit: pending
 - Final remote HEAD: pending
 - Push status: pending
