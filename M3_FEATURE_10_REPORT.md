@@ -74,6 +74,6 @@ Charts use responsive containers and adapt from three columns to two columns and
 - Base M3 commit: `8f2adcadbf5531dba034edc77fabb2a0adba5b64`
 - Implementation commit: `7d2b0492c8c35070a302a272bdbae41efca69d96`
 - Report commit: `988c5df01a10c913821f7ce60ae8c1876ffec8d2`
-- Final remote HEAD: `988c5df01a10c913821f7ce60ae8c1876ffec8d2`
+- Final remote HEAD: verified after the final metadata push; see the branch tip reported below
 - Push status: PASS; initial remote branch push completed successfully
 - Merge readiness: ready for review after push; not merged into M3 or `main`.
