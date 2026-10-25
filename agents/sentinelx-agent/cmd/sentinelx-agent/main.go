@@ -24,6 +24,10 @@ type config struct {
 	Interval                                                       time.Duration
 }
 type identity struct{ AgentID, AgentToken string }
+type setupConfig struct {
+	APIURL          string `json:"apiUrl"`
+	EnrollmentToken string `json:"enrollmentToken"`
+}
 type systemInfo struct{ Hostname, OS, OSVersion, Architecture, AgentVersion string }
 type telemetry struct {
 	Timestamp   string  `json:"timestamp"`
@@ -43,6 +47,25 @@ func env(k, fallback string) string {
 	}
 	return fallback
 }
+
+func loadSetupFile() setupConfig {
+	paths := []string{"setup.json"}
+	if executable, err := os.Executable(); err == nil {
+		paths = append(paths, filepath.Join(filepath.Dir(executable), "setup.json"))
+	}
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var setup setupConfig
+		if json.Unmarshal(data, &setup) == nil {
+			return setup
+		}
+	}
+	return setupConfig{}
+}
+
 func loadConfig() config {
 	interval, _ := time.ParseDuration(env("SENTINELX_INTERVAL", "60s"))
 	dir := os.Getenv("SENTINELX_DATA_DIR")
@@ -51,7 +74,19 @@ func loadConfig() config {
 			dir = filepath.Join(d, "SentinelX")
 		}
 	}
-	return config{APIURL: strings.TrimRight(env("SENTINELX_API_URL", "http://localhost:3001/api/v1"), "/"), EnrollmentToken: os.Getenv("SENTINELX_ENROLLMENT_TOKEN"), AgentID: os.Getenv("SENTINELX_AGENT_ID"), AgentToken: os.Getenv("SENTINELX_AGENT_TOKEN"), Version: env("SENTINELX_AGENT_VERSION", "0.1.0"), DataDir: dir, Interval: interval}
+	setup := loadSetupFile()
+	apiURL := os.Getenv("SENTINELX_API_URL")
+	if apiURL == "" {
+		apiURL = setup.APIURL
+	}
+	if apiURL == "" {
+		apiURL = "http://localhost:3001/api/v1"
+	}
+	enrollmentToken := os.Getenv("SENTINELX_ENROLLMENT_TOKEN")
+	if enrollmentToken == "" {
+		enrollmentToken = setup.EnrollmentToken
+	}
+	return config{APIURL: strings.TrimRight(apiURL, "/"), EnrollmentToken: enrollmentToken, AgentID: os.Getenv("SENTINELX_AGENT_ID"), AgentToken: os.Getenv("SENTINELX_AGENT_TOKEN"), Version: env("SENTINELX_AGENT_VERSION", "0.1.0"), DataDir: dir, Interval: interval}
 }
 func loadIdentity(c config) (identity, error) {
 	if c.AgentID != "" && c.AgentToken != "" {
@@ -67,11 +102,14 @@ func loadIdentity(c config) (identity, error) {
 			return i, nil
 		}
 	}
-	raw := make([]byte, 16)
-	if _, e := rand.Read(raw); e != nil {
-		return identity{}, e
+	i := identity{AgentID: c.AgentID}
+	if i.AgentID == "" {
+		raw := make([]byte, 16)
+		if _, e := rand.Read(raw); e != nil {
+			return identity{}, e
+		}
+		i.AgentID = hex.EncodeToString(raw)
 	}
-	i := identity{AgentID: hex.EncodeToString(raw)}
 	return i, nil
 }
 func collect(c config, id identity) systemInfo {
